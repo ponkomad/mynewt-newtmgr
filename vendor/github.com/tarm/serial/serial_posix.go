@@ -15,9 +15,37 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
-
-	//"unsafe"
 )
+
+func PortRTScontrol(fd uintptr, state bool) (err error) {
+	RTS_flag := syscall.TIOCM_RTS
+
+	if state {
+		_, _, errno := syscall.Syscall(
+			syscall.SYS_IOCTL,
+			uintptr(fd),
+			uintptr(syscall.TIOCMBIS),
+			uintptr(unsafe.Pointer(&RTS_flag)),
+		)
+
+		if errno != 0 {
+			return errors.New("RTS set syscall error")
+		}
+	} else {
+		_, _, errno := syscall.Syscall(
+			syscall.SYS_IOCTL,
+			uintptr(fd),
+			uintptr(syscall.TIOCMBIC),
+			uintptr(unsafe.Pointer(&RTS_flag)),
+		)
+
+		if errno != 0 {
+			return errors.New("RTS clear syscall error")
+		}
+	}
+
+	return nil
+}
 
 func openPort(name string, baud int, databits byte, parity Parity, stopbits StopBits, readTimeout time.Duration) (p *Port, err error) {
 	f, err := os.OpenFile(name, syscall.O_RDWR|syscall.O_NOCTTY|syscall.O_NONBLOCK, 0666)
@@ -169,16 +197,9 @@ func openPort(name string, baud int, databits byte, parity Parity, stopbits Stop
 				}
 	*/
 
-	RTS_flag := syscall.TIOCM_RTS
-	err = nil
-	_, _, errno := syscall.Syscall(
-		syscall.SYS_IOCTL,
-		uintptr(f.Fd()),
-		uintptr(syscall.TIOCMBIC),
-		uintptr(unsafe.Pointer(&RTS_flag)),
-	)
-	if errno != 0 {
-		s := fmt.Sprint("RTS clear syscall error:", errno)
+	error := PortRTScontrol(f.Fd(), false)
+	if error != nil {
+		s := fmt.Sprint("RTS clear syscall error:", error)
 		f.Close()
 		return nil, errors.New(s)
 	}
@@ -200,7 +221,7 @@ func (p *Port) Write(b []byte) (n int, err error) {
 	return p.f.Write(b)
 }
 
-func (p *Port) GetFd() (f uintptr) {
+func (p *Port) GetFd() (fd uintptr) {
 	return p.f.Fd()
 }
 

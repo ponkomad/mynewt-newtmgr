@@ -30,13 +30,10 @@ import (
 	"github.com/joaojeronimo/go-crc16"
 	"github.com/runtimeco/go-coap"
 	"github.com/tarm/serial"
-	"sync"
-	"syscall"
-	"time"
-	"unsafe"
-
 	"mynewt.apache.org/newt/util"
 	"mynewt.apache.org/newtmgr/nmxact/sesn"
+	"sync"
+	"time"
 )
 
 type XportCfg struct {
@@ -374,19 +371,13 @@ func (sx *SerialXport) Rx() ([]byte, error) {
 func GenDetectString(sx *SerialXport, detect_str []byte, tries int, to_ms int) (err error) {
 
 	fd := sx.port.GetFd()
-
-	//pull down RTS and generate reset
-	RTS_flag := syscall.TIOCM_RTS
 	err = nil
 
-	_, _, errno := syscall.Syscall(
-		syscall.SYS_IOCTL,
-		uintptr(fd),
-		uintptr(syscall.TIOCMBIS),
-		uintptr(unsafe.Pointer(&RTS_flag)),
-	)
-	if errno != 0 {
-		s := fmt.Sprint("RTS control syscall error:", errno)
+	//pull down RTS and generate reset
+	err = serial.PortRTScontrol(fd, true)
+
+	if err != nil {
+		s := fmt.Sprint("RTS control syscall error:", err)
 		sx.port.Close()
 		return errors.New(s)
 	}
@@ -394,14 +385,10 @@ func GenDetectString(sx *SerialXport, detect_str []byte, tries int, to_ms int) (
 	time.Sleep(time.Millisecond * 100) //wait for mcu reset
 
 	//pull up RTS and release reset
-	_, _, errno = syscall.Syscall(
-		syscall.SYS_IOCTL,
-		uintptr(fd),
-		uintptr(syscall.TIOCMBIC),
-		uintptr(unsafe.Pointer(&RTS_flag)),
-	)
-	if errno != 0 {
-		s := fmt.Sprint("RTS control syscall error:", errno)
+	err = serial.PortRTScontrol(fd, false)
+
+	if err != nil {
+		s := fmt.Sprint("RTS control syscall error:", err)
 		sx.port.Close()
 		return errors.New(s)
 	}
