@@ -19,10 +19,15 @@
 
 package cli
 
+// #include <termios.h>
+// #include <unistd.h>
+import "C"
+
 import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"mynewt.apache.org/newtmgr/nmxact/nmserial"
 	"os"
 	"strings"
 
@@ -43,7 +48,13 @@ var (
 )
 
 var noerase bool
-var upgrade bool
+
+func ActivateBl() {
+	if nmutil.ActivateBlString != "" {
+		fmt.Printf("Bl activation start...\n")
+		nmserial.GenDetectString(globalSport, []byte(nmutil.ActivateBlString), 1, 300)
+	}
+}
 
 func imageFlagsStr(image nmp.ImageStateEntry) string {
 	strs := []string{}
@@ -190,7 +201,9 @@ func imageUploadCmd(cmd *cobra.Command, args []string) {
 	if noerase == true {
 		c.NoErase = true
 	}
-	c.Upgrade = upgrade
+
+	ActivateBl()
+
 	c.ProgressBar = pb.StartNew(len(imageFile))
 	c.ProgressBar.SetUnits(pb.U_BYTES)
 	c.ProgressBar.ShowSpeed = true
@@ -399,11 +412,16 @@ func imageCmd() *cobra.Command {
 	uploadCmd.PersistentFlags().BoolVarP(&noerase,
 		"noerase", "e", false,
 		"Don't send specific image erase command to start with")
-	uploadCmd.PersistentFlags().BoolVarP(&upgrade,
-		"upgrade", "u", false,
-		"Only allow the upload if the new image's version is greater than "+
-			"that of the currently running image")
 	imageCmd.AddCommand(uploadCmd)
+
+	blCmd := &cobra.Command{
+		Use:     "activate bootloader -c <conn_profile>",
+		Short:   "activate bootloader via uart",
+		Example: "\n",
+		Run:     ActivateBlCmd,
+	}
+
+	imageCmd.AddCommand(blCmd)
 
 	coreListCmd := &cobra.Command{
 		Use:     "corelist -c <conn_profile>",
@@ -466,4 +484,10 @@ func imageCmd() *cobra.Command {
 	imageCmd.AddCommand(coreConvertCmd)
 
 	return imageCmd
+}
+
+func ActivateBlCmd(cmd *cobra.Command, args []string) {
+	fmt.Printf("Bl activation start...\n")
+	nmserial.GenDetectString(globalSport, []byte("rtlsnet"), 3, 300)
+
 }

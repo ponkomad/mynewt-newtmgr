@@ -55,6 +55,9 @@ func Commands() *cobra.Command {
 		},
 	}
 
+	nmCmd.PersistentFlags().StringVarP(&nmutil.ActivateBlString, "actbl", "a", "",
+		"activation bootloader string")
+
 	nmCmd.PersistentFlags().StringVarP(&nmutil.ConnProfile, "conn", "c", "",
 		"connection profile to use")
 
@@ -82,9 +85,6 @@ func Commands() *cobra.Command {
 
 	nmCmd.PersistentFlags().StringVar(&nmutil.ConnExtra, "connextra", "",
 		"Additional key-value pair to append to the connstring")
-
-	nmCmd.PersistentFlags().StringVar(&nmxutil.OmpRes, "ompres", "/omgr",
-		"Use this CoAP resource instead of /omgr")
 
 	versCmd := &cobra.Command{
 		Use:     "version",

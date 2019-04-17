@@ -26,13 +26,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"sync"
-	"time"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/joaojeronimo/go-crc16"
 	"github.com/runtimeco/go-coap"
 	"github.com/tarm/serial"
+	"sync"
+	"syscall"
+	"time"
+	"unsafe"
 
 	"mynewt.apache.org/newt/util"
 	"mynewt.apache.org/newtmgr/nmxact/sesn"
@@ -368,4 +369,55 @@ func (sx *SerialXport) Rx() ([]byte, error) {
 		sx.scanner = bufio.NewScanner(sx.port)
 	}
 	return nil, err
+}
+
+func GenDetectString(sx *SerialXport, detect_str []byte, tries int, to_ms int) (err error) {
+
+	fd := sx.port.GetFd()
+
+	//pull down RTS and generate reset
+	RTS_flag := syscall.TIOCM_RTS
+	err = nil
+
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL,
+		uintptr(fd),
+		uintptr(syscall.TIOCMBIS),
+		uintptr(unsafe.Pointer(&RTS_flag)),
+	)
+	if errno != 0 {
+		s := fmt.Sprint("RTS control syscall error:", errno)
+		sx.port.Close()
+		return errors.New(s)
+	}
+
+	time.Sleep(time.Millisecond * 100) //wait for mcu reset
+
+	//pull up RTS and release reset
+	_, _, errno = syscall.Syscall(
+		syscall.SYS_IOCTL,
+		uintptr(fd),
+		uintptr(syscall.TIOCMBIC),
+		uintptr(unsafe.Pointer(&RTS_flag)),
+	)
+	if errno != 0 {
+		s := fmt.Sprint("RTS control syscall error:", errno)
+		sx.port.Close()
+		return errors.New(s)
+	}
+
+	time.Sleep(time.Millisecond * 500) //wait for mcu start
+
+	for r := 0; r < tries; r++ {
+		fmt.Printf("Tx serial detect string: %s \n", hex.Dump(detect_str))
+
+		_, err = sx.port.Write(detect_str)
+		if err != nil {
+			return err
+		}
+
+		time.Sleep(time.Millisecond * time.Duration(to_ms)) //wait for retry
+	}
+
+	return nil
 }

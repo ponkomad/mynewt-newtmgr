@@ -14,6 +14,8 @@ import (
 	"os"
 	"syscall"
 	"time"
+	"unsafe"
+
 	//"unsafe"
 )
 
@@ -167,6 +169,20 @@ func openPort(name string, baud int, databits byte, parity Parity, stopbits Stop
 				}
 	*/
 
+	RTS_flag := syscall.TIOCM_RTS
+	err = nil
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL,
+		uintptr(f.Fd()),
+		uintptr(syscall.TIOCMBIC),
+		uintptr(unsafe.Pointer(&RTS_flag)),
+	)
+	if errno != 0 {
+		s := fmt.Sprint("RTS clear syscall error:", errno)
+		f.Close()
+		return nil, errors.New(s)
+	}
+
 	return &Port{f: f}, nil
 }
 
@@ -182,6 +198,10 @@ func (p *Port) Read(b []byte) (n int, err error) {
 
 func (p *Port) Write(b []byte) (n int, err error) {
 	return p.f.Write(b)
+}
+
+func (p *Port) GetFd() (f uintptr) {
+	return p.f.Fd()
 }
 
 // Discards data written to the port but not transmitted,

@@ -37,6 +37,7 @@ type ToolInfoType struct {
 
 var Timeout float64
 var Tries int
+var ActivateBlString string
 var ConnProfile string
 var DeviceName string
 var BleWriteRsp bool

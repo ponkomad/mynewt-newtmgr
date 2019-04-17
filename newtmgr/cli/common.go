@@ -39,6 +39,7 @@ import (
 
 var globalSesn sesn.Sesn
 var globalXport xport.Xport
+var globalSport *nmserial.SerialXport
 var globalP *config.ConnProfile
 
 // This keeps track of whether the global interface has been assigned.  This
@@ -121,7 +122,8 @@ func GetXport() (xport.Xport, error) {
 			return nil, err
 		}
 
-		globalXport = nmserial.NewSerialXport(sc)
+		globalSport = nmserial.NewSerialXport(sc)
+		globalXport = globalSport
 
 	case config.CONN_TYPE_BLL_PLAIN, config.CONN_TYPE_BLL_OIC:
 		bc, err := config.ParseBllConnString(cp.ConnString)
